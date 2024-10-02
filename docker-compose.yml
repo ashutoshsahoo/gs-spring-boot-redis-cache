@@ -1,22 +1,43 @@
 services:
-  redis:
+  redisdb:
     image: redis:latest
     ports:
       - 6379:6379
-    command: [ "redis-server", "--appendonly", "yes" ]
+    networks:
+      - redis
     volumes:
       - redis-data:/data
 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    environment:
-      - REDIS_HOSTS=local:redis:6379
-      - HTTP_USER=root
-      - HTTP_PASSWORD=qwerty
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    volumes:
+      - redisinsight-data:/data
     ports:
-      - 8081:8081
+      - 5540:5540
+    networks:
+      - redis
     depends_on:
+      - redisdb
+
+  # Add Redis DB configuration into Redis Insight
+  # Refer - http://localhost:5540/api/docs#/Database/DatabaseController_create
+  redisdb-setup:
+    image: curlimages/curl
+    command: >
+      -s -v -X "POST" "http://redisinsight:5540/api/databases" 
+      -H "Content-Type: application/json; charset=utf-8" 
+      -d '{"host": "redisdb", "port": 6379, "name": "RedisDB Docker"}'
+    depends_on:
+      - redisdb
+      - redisinsight
+    restart: "on-failure"
+    networks:
       - redis
 
 volumes:
   redis-data:
+  redisinsight-data:
+
+networks:
+  redis:
+    driver: bridge

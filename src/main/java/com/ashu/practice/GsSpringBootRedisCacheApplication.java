@@ -1,5 +1,9 @@
 package com.ashu.practice;
 
+import com.ashu.practice.entity.User;
+import com.ashu.practice.service.impl.UserServiceImpl;
+import com.ashu.practice.util.EncryptedRedisSerializer;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.cache.RedisCacheManagerBuilderCustomizer;
@@ -9,7 +13,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 
 import java.time.Duration;
@@ -23,25 +26,19 @@ public class GsSpringBootRedisCacheApplication {
     }
 
 
-//    @Bean
-//    public RedisCacheConfiguration cacheConfiguration() {
-//        return RedisCacheConfiguration
-//                .defaultCacheConfig()
-//                .entryTtl(Duration.ofMinutes(60))
-//                .disableCachingNullValues()
-//                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
-//    }
-
-
     @Bean
-    public CacheManager redisCacheManager(RedisConnectionFactory redisConnectionFactory) {
-        RedisSerializationContext.SerializationPair<Object> jsonSerializer =
-                RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer());
+    public CacheManager redisCacheManager(RedisConnectionFactory redisConnectionFactory,
+                                          ObjectMapper objectMapper) {
+        RedisSerializationContext.SerializationPair<User> jsonSerializer =
+//                RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(objectMapper, User.class));
+        // Enable encrypted caching for sensitive data
+                RedisSerializationContext.SerializationPair.fromSerializer(new EncryptedRedisSerializer<>(objectMapper, User.class));
         return RedisCacheManager.RedisCacheManagerBuilder
                 .fromConnectionFactory(redisConnectionFactory)
                 .cacheDefaults(
                         RedisCacheConfiguration.defaultCacheConfig()
-                                .entryTtl(Duration.ofMinutes(60))
+                                .disableCachingNullValues()
+                                  .entryTtl(Duration.ofMinutes(7))
                                 .serializeValuesWith(jsonSerializer)
                 )
                 .build();
@@ -50,8 +47,9 @@ public class GsSpringBootRedisCacheApplication {
     @Bean
     public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
         return builder -> builder
-                .withCacheConfiguration("users",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(10)))
+                .withCacheConfiguration(UserServiceImpl.REDIS_CACHE_NAME_USERS,
+                        RedisCacheConfiguration.defaultCacheConfig()
+                                .entryTtl(Duration.ofMinutes(2)))
                 .withCacheConfiguration("dataCache",
                         RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(5)));
     }

@@ -19,9 +19,11 @@ import java.util.List;
 @Slf4j
 public class UserServiceImpl implements UserService {
 
+    public static final String REDIS_CACHE_NAME_USERS = "users";
+
     private final UserRepository userRepository;
 
-    @Cacheable(cacheNames = "users")
+    @Cacheable(cacheNames = REDIS_CACHE_NAME_USERS)
     @Override
     public List<User> getUsers() {
         log.info("Getting users");
@@ -30,8 +32,8 @@ public class UserServiceImpl implements UserService {
         return users;
     }
 
-    //    @Cacheable(cacheNames = "users", key = "#userId", unless = "#result.followers < 12000")
-    @Cacheable(cacheNames = "users", key = "#userId")
+    //    @Cacheable(cacheNames = REDIS_CACHE_NAME_USERS, key = "#userId", unless = "#result.followers < 12000")
+    @Cacheable(cacheNames = REDIS_CACHE_NAME_USERS, key = "#userId")
     @Override
     public User getUser(Long userId) {
         log.info("Getting user with ID {}.", userId);
@@ -39,14 +41,14 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    @CachePut(cacheNames = "users", key = "#userId")
+    @CachePut(cacheNames = REDIS_CACHE_NAME_USERS, key = "#userId")
     @Override
     public User updatePersonByID(Long userId, User user) {
         return userRepository.save(user);
     }
 
     //    @CacheEvict(cacheNames = "users", allEntries = true)
-    @CacheEvict(cacheNames = "users", key = "#userId")
+    @CacheEvict(cacheNames = REDIS_CACHE_NAME_USERS, key = "#userId")
     @Override
     public void deleteUserByID(Long userId) {
         log.info("deleting person with userId {}", userId);
